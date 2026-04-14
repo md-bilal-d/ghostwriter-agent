@@ -1,0 +1,98 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# TypeScript v1 declaration files
+typings/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# next.js build output
+.next/
+out/
+
+# nuxt.js build output
+.nuxt/
+dist/
+
+# gatsby files
+.cache/
+# Comment in the public line if your project uses Gatsby and not a clean src directory
+# public
+
+# vue-cli build objects
+dist/
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# Tern build root
+.tern-port
+
+# Stores VS Code state extensions, etc
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Qoder project directory
+.qoder/
+
+# Project specific
+sandbox/
+dist/
+build/
+backend/node_modules/
+frontend/node_modules/
+frontend/dist/
