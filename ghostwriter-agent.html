@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Ghostwriter Agent — Autonomous Self-Healing CI/CD</title>
+<meta name="description" content="An autonomous, self-healing CI/CD agent that detects, analyzes, and fixes failing Pull Requests using LLM-based reasoning and Docker sandboxing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--green:#00ff88;--green-dim:#00cc6a;--bg:#080b0f;--bg2:#0c1117;--bg3:#111820;--card:#0d1218;--border:#1a2332;--text:#e0e6ed;--text-dim:#7a8a9e;--mono:'JetBrains Mono',monospace;--serif:'Crimson Pro',Georgia,serif;--radius:12px}
+html{scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--green-dim) var(--bg2)}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--green-dim);border-radius:3px}
+body{font-family:var(--mono);background:var(--bg);color:var(--text);overflow-x:hidden;line-height:1.6}
+a{color:var(--green);text-decoration:none}
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* CURSOR GLOW */
+#cursorGlow{position:fixed;width:220px;height:220px;border-radius:50%;pointer-events:none;z-index:9999;background:radial-gradient(circle,rgba(0,255,136,.12) 0%,transparent 70%);transform:translate(-50%,-50%);transition:left .08s,top .08s}
+
+/* NAVBAR */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,11,15,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{font-size:1.25rem;font-weight:700;letter-spacing:-.5px}
+.nav-logo span{color:var(--green)}
+.nav-links{display:flex;gap:28px;list-style:none}
+.nav-links a{color:var(--text-dim);font-size:.85rem;transition:color .2s}.nav-links a:hover{color:var(--green)}
+.nav-cta{background:var(--green);color:var(--bg);padding:8px 20px;border-radius:8px;font-weight:700;font-size:.85rem;border:none;cursor:pointer;transition:box-shadow .3s}
+.nav-cta:hover{box-shadow:0 0 24px rgba(0,255,136,.4)}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;padding:8px}
+.hamburger span{width:24px;height:2px;background:var(--text);transition:all .3s}
+.hamburger.active span:nth-child(1){transform:rotate(45deg) translate(5px,5px)}
+.hamburger.active span:nth-child(2){opacity:0}
+.hamburger.active span:nth-child(3){transform:rotate(-45deg) translate(5px,-5px)}
+.mobile-menu{display:none;position:fixed;top:64px;left:0;right:0;background:rgba(8,11,15,.97);backdrop-filter:blur(20px);padding:24px;border-bottom:1px solid var(--border);flex-direction:column;gap:16px}
+.mobile-menu.open{display:flex}
+.mobile-menu a{color:var(--text-dim);font-size:1rem;padding:8px 0}
+
+/* TICKER */
+.ticker-strip{background:var(--bg2);border-bottom:1px solid var(--border);border-left:3px solid var(--green);overflow:hidden;height:36px;display:flex;align-items:center;margin-top:64px;position:relative}
+.ticker-track{display:flex;gap:60px;animation:tickerScroll 30s linear infinite;white-space:nowrap}
+.ticker-item{font-size:.78rem;color:var(--green);opacity:.8;font-family:var(--mono)}
+@keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* HERO */
+.hero{position:relative;min-height:calc(100vh - 100px);display:flex;align-items:center;padding:100px 0 60px;overflow:hidden}
+#matrixCanvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;opacity:.07;-webkit-mask-image:linear-gradient(to bottom,#000 60%,transparent 100%);mask-image:linear-gradient(to bottom,#000 60%,transparent 100%)}
+.hero-hex-bg{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;opacity:.04;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52'%3E%3Cpath d='M30 0l30 16v20L30 52 0 36V16z' fill='none' stroke='%2300ff88' stroke-width='.5'/%3E%3C/svg%3E");background-size:60px 52px}
+.hero-content{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;width:100%}
+.hero-text h1{font-family:var(--serif);font-size:clamp(2.4rem,5vw,4rem);font-weight:700;line-height:1.1;margin-bottom:16px}
+.hero-text h1 .green{color:var(--green)}
+.hero-text h1 .anim-letter{display:inline-block;animation:letterSpace .8s ease forwards}
+@keyframes letterSpace{0%{letter-spacing:12px;opacity:0}100%{letter-spacing:normal;opacity:1}}
+.hero-subtitle{font-family:var(--serif);font-size:clamp(1rem,2vw,1.25rem);color:var(--text-dim);margin-bottom:32px;max-width:500px}
+.hero-buttons{display:flex;gap:16px;flex-wrap:wrap}
+.btn-primary{background:var(--green);color:var(--bg);padding:14px 32px;border-radius:10px;font-weight:700;font-family:var(--mono);font-size:.9rem;border:none;cursor:pointer;transition:all .3s}
+.btn-primary:hover{box-shadow:0 0 30px rgba(0,255,136,.4);transform:translateY(-2px)}
+.btn-secondary{border:1px solid var(--border);color:var(--text);padding:14px 32px;border-radius:10px;font-family:var(--mono);font-size:.9rem;background:transparent;cursor:pointer;transition:all .3s}
+.btn-secondary:hover{border-color:var(--green);color:var(--green)}
+
+/* TERMINAL */
+.terminal-wrapper{position:relative}
+.terminal-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:120%;height:120%;background:radial-gradient(circle,rgba(0,255,136,.08) 0%,transparent 60%);z-index:0;pointer-events:none}
+.terminal{position:relative;z-index:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.terminal-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg3);border-bottom:1px solid var(--border)}
+.terminal-dots{display:flex;gap:7px}.terminal-dots span{width:11px;height:11px;border-radius:50%}
+.terminal-dots span:nth-child(1){background:#ff5f57}.terminal-dots span:nth-child(2){background:#febc2e}.terminal-dots span:nth-child(3){background:#28c840}
+.terminal-title{font-size:.75rem;color:var(--text-dim)}
+.replay-btn{background:none;border:1px solid var(--border);color:var(--green);font-size:.72rem;padding:3px 10px;border-radius:5px;cursor:pointer;font-family:var(--mono);transition:all .2s}
+.replay-btn:hover{background:var(--green);color:var(--bg)}
+.terminal-body{padding:18px;font-size:.82rem;min-height:220px;max-height:280px;overflow-y:auto}
+.terminal-body .line{margin-bottom:4px;opacity:0}.terminal-body .line.visible{opacity:1}
+.terminal-body .prompt{color:var(--green)}.terminal-body .info{color:#4facfe}
+.terminal-body .success{color:var(--green)}.terminal-body .warn{color:#febc2e}.terminal-body .dim{color:var(--text-dim)}
+.cursor-blink{display:inline-block;width:8px;height:15px;background:var(--green);animation:blink 1s step-end infinite;vertical-align:middle;margin-left:2px}
+@keyframes blink{50%{opacity:0}}
+
+/* SECTION COMMON */
+section{padding:80px 0}
+.section-label{font-size:.8rem;color:var(--green);text-transform:uppercase;letter-spacing:3px;margin-bottom:12px}
+.section-title{font-family:var(--serif);font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;margin-bottom:16px}
+.section-sub{color:var(--text-dim);max-width:600px;margin-bottom:48px;font-size:.95rem}
+.fade-up{opacity:0;transform:translateY(30px);transition:opacity .7s ease,transform .7s ease}.fade-up.visible{opacity:1;transform:translateY(0)}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-bottom:80px}
+.stat-card{text-align:center;padding:32px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius)}
+.stat-num{font-size:clamp(2rem,4vw,3rem);font-weight:700;color:var(--green);font-family:var(--mono)}
+.stat-label{font-size:.82rem;color:var(--text-dim);margin-top:6px}
+
+/* HOW IT WORKS */
+.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:step}
+.step-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:32px 24px;position:relative;transition:border-color .3s}
+.step-card:hover{border-color:var(--green)}
+.step-num{font-size:2.5rem;font-weight:700;color:var(--green);opacity:.2;margin-bottom:12px;font-family:var(--mono)}
+.step-card h3{font-size:1.1rem;margin-bottom:8px;font-family:var(--serif)}
+.step-card p{font-size:.85rem;color:var(--text-dim);line-height:1.6}
+
+/* ARCHITECTURE DIAGRAM */
+.arch-section{overflow:hidden}
+.arch-flow{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:nowrap;padding:40px 0;position:relative}
+.arch-box{background:rgba(13,18,24,.8);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;text-align:center;min-width:140px;position:relative;z-index:2;transition:border-color .3s}
+.arch-box:hover{border-color:var(--green)}
+.arch-box .arch-icon{font-size:1.6rem;margin-bottom:8px}
+.arch-box .arch-label{font-size:.8rem;font-weight:600}
+.arch-connector{width:60px;height:2px;position:relative;z-index:1;flex-shrink:0}
+.arch-connector svg{width:60px;height:40px;overflow:visible}
+.arch-connector line{stroke:var(--green);stroke-width:2;stroke-dasharray:6 4}
+.arch-dot{fill:var(--green);filter:drop-shadow(0 0 4px var(--green))}
+
+/* FEATURES */
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.feature-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:28px 24px;position:relative;overflow:hidden;transition:transform .3s,box-shadow .3s}
+.feature-card::before{content:'';position:absolute;top:0;left:0;width:0;height:3px;background:var(--green);transition:width .4s ease}
+.feature-card:hover::before{width:100%}
+.feature-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.feature-icon{font-size:1.8rem;margin-bottom:14px;display:inline-block;transition:transform .3s,filter .3s}
+.feature-card:hover .feature-icon{transform:scale(1.2);filter:drop-shadow(0 0 8px rgba(0,255,136,.5))}
+.feature-card h3{font-size:1rem;margin-bottom:8px;font-family:var(--serif)}
+.feature-card p{font-size:.83rem;color:var(--text-dim);line-height:1.6}
+
+/* TECH BADGES */
+.tech-section{text-align:center}
+.tech-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px}
+.tech-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:.82rem;opacity:0;transform:scale(.7);transition:all .4s ease}
+.tech-badge.visible{opacity:1;transform:scale(1)}
+.tech-badge:hover{border-color:var(--green);background:var(--bg3)}
+
+/* CTA */
+.cta-section{text-align:center;padding:100px 0}
+.cta-section h2{font-family:var(--serif);font-size:clamp(2rem,4vw,3rem);margin-bottom:16px}
+.cta-section p{color:var(--text-dim);margin-bottom:32px;max-width:500px;margin-left:auto;margin-right:auto}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--border);padding:32px 0;text-align:center;font-size:.8rem;color:var(--text-dim)}
+
+/* MOBILE */
+@media(max-width:768px){
+.nav-links{display:none}.hamburger{display:flex}
+.hero-content{grid-template-columns:1fr;text-align:center;gap:32px}
+.hero-buttons{justify-content:center}
+.stats-row{grid-template-columns:repeat(2,1fr)}
+.steps-grid,.features-grid{grid-template-columns:1fr}
+.arch-flow{flex-direction:column;gap:0}
+.arch-connector{width:2px;height:40px;transform:rotate(90deg)}
+.terminal-body{font-size:.75rem;min-height:180px}
+}
+@media(max-width:480px){
+.stats-row{grid-template-columns:1fr}
+.hero-buttons{flex-direction:column;align-items:center}
+}
+</style>
+</head>
+<body>
+
+<!-- CURSOR GLOW -->
+<div id="cursorGlow"></div>
+
+<!-- NAV -->
+<nav class="nav"><div class="container nav-inner">
+<div class="nav-logo">Ghost<span>writer</span></div>
+<ul class="nav-links" id="navLinks">
+<li><a href="#how">How It Works</a></li>
+<li><a href="#architecture">Architecture</a></li>
+<li><a href="#features">Features</a></li>
+<li><a href="#tech">Tech Stack</a></li>
+</ul>
+<a href="https://github.com/md-bilal-d/ghostwriter-agent" class="nav-cta" target="_blank">⭐ Star on GitHub</a>
+<button class="hamburger" id="hamburgerBtn" aria-label="Menu"><span></span><span></span><span></span></button>
+</div></nav>
+<div class="mobile-menu" id="mobileMenu">
+<a href="#how">How It Works</a><a href="#architecture">Architecture</a><a href="#features">Features</a><a href="#tech">Tech Stack</a>
+<a href="https://github.com/md-bilal-d/ghostwriter-agent" target="_blank">⭐ Star on GitHub</a>
+</div>
+
+<!-- TICKER -->
+<div class="ticker-strip"><div class="ticker-track" id="tickerTrack"></div></div>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+<canvas id="matrixCanvas"></canvas>
+<div class="hero-hex-bg"></div>
+<div class="container hero-content">
+<div class="hero-text fade-up">
+<h1 id="heroTitle"><span class="green">Ghostwriter</span> Agent</h1>
+<p class="hero-subtitle">An autonomous, self-healing CI/CD agent that detects, analyzes, and fixes failing Pull Requests — powered by LLM reasoning &amp; Docker sandboxing.</p>
+<div class="hero-buttons">
+<button class="btn-primary" onclick="window.open('https://github.com/md-bilal-d/ghostwriter-agent','_blank')">Get Started →</button>
+<button class="btn-secondary" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">See How It Works</button>
+</div>
+</div>
+<div class="terminal-wrapper fade-up">
+<div class="terminal-glow"></div>
+<div class="terminal">
+<div class="terminal-bar">
+<div class="terminal-dots"><span></span><span></span><span></span></div>
+<span class="terminal-title">ghostwriter — mission #87</span>
+<button class="replay-btn" id="replayBtn">▶ Replay</button>
+</div>
+<div class="terminal-body" id="terminalBody"></div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- STATS -->
+<section class="container">
+<div class="stats-row">
+<div class="stat-card fade-up"><div class="stat-num" data-target="100">0</div><div class="stat-label">PRs Auto-Healed</div></div>
+<div class="stat-card fade-up"><div class="stat-num" data-target="42">0</div><div class="stat-label">Repos Monitored</div></div>
+<div class="stat-card fade-up"><div class="stat-num" data-target="97">0</div><div class="stat-label">% Fix Accuracy</div></div>
+<div class="stat-card fade-up"><div class="stat-num" data-target="8">0</div><div class="stat-label">Avg Seconds to Fix</div></div>
+</div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="container">
+<div class="fade-up"><p class="section-label">Process</p><h2 class="section-title">How It Works</h2><p class="section-sub">Ghostwriter follows a Think → Act → Verify loop inside an isolated sandbox, ensuring every fix is validated before it ever touches your codebase.</p></div>
+<div class="steps-grid">
+<div class="step-card fade-up"><div class="step-num">01</div><h3>Detect</h3><p>Listens for GitHub webhook events on PR open or sync. Spawns an ephemeral Docker sandbox to clone and test the branch.</p></div>
+<div class="step-card fade-up"><div class="step-num">02</div><h3>Analyze</h3><p>LLM reads test failure logs, queries relevant source files using agentic RAG, and reasons about the root cause using chain-of-thought.</p></div>
+<div class="step-card fade-up"><div class="step-num">03</div><h3>Heal</h3><p>Applies the code fix inside Docker, re-runs tests to verify, then pushes a self-healing commit or opens a refined Pull Request via Octokit.</p></div>
+</div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture" class="container arch-section">
+<div class="fade-up"><p class="section-label">Architecture</p><h2 class="section-title">System Flow</h2><p class="section-sub">From webhook trigger to self-healing commit — a zero-trust pipeline with full isolation.</p></div>
+<div class="arch-flow fade-up" id="archFlow">
+<div class="arch-box"><div class="arch-icon">📋</div><div class="arch-label">GitHub PR</div></div>
+<div class="arch-connector"><svg viewBox="0 0 60 40"><line x1="0" y1="20" x2="60" y2="20"/><circle class="arch-dot arch-dot-anim" cx="0" cy="20" r="3"/></svg></div>
+<div class="arch-box"><div class="arch-icon">🔗</div><div class="arch-label">Webhook</div></div>
+<div class="arch-connector"><svg viewBox="0 0 60 40"><line x1="0" y1="20" x2="60" y2="20"/><circle class="arch-dot arch-dot-anim" cx="0" cy="20" r="3"/></svg></div>
+<div class="arch-box"><div class="arch-icon">🧠</div><div class="arch-label">LangGraph Agent</div></div>
+<div class="arch-connector"><svg viewBox="0 0 60 40"><line x1="0" y1="20" x2="60" y2="20"/><circle class="arch-dot arch-dot-anim" cx="0" cy="20" r="3"/></svg></div>
+<div class="arch-box"><div class="arch-icon">🐳</div><div class="arch-label">Docker Sandbox</div></div>
+<div class="arch-connector"><svg viewBox="0 0 60 40"><line x1="0" y1="20" x2="60" y2="20"/><circle class="arch-dot arch-dot-anim" cx="0" cy="20" r="3"/></svg></div>
+<div class="arch-box"><div class="arch-icon">🚀</div><div class="arch-label">Git Push</div></div>
+</div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" class="container">
+<div class="fade-up"><p class="section-label">Capabilities</p><h2 class="section-title">Features</h2><p class="section-sub">Production-grade autonomous healing with enterprise-level security and observability.</p></div>
+<div class="features-grid">
+<div class="feature-card fade-up"><div class="feature-icon">🧠</div><h3>Agentic Reasoning</h3><p>Chain-of-Thought prompting with semantic file retrieval to pinpoint exactly which code to fix.</p></div>
+<div class="feature-card fade-up"><div class="feature-icon">🛡️</div><h3>Zero-Trust Security</h3><p>All AI-generated code runs in ephemeral Docker containers — the host is never exposed.</p></div>
+<div class="feature-card fade-up"><div class="feature-icon">🔄</div><h3>Auto Recovery</h3><p>Patches syntax errors, null checks, dependency mismatches — then verifies before pushing.</p></div>
+<div class="feature-card fade-up"><div class="feature-icon">📺</div><h3>Live Dashboard</h3><p>Stream the agent's terminal output in real-time via WebSockets to a sleek React dashboard.</p></div>
+<div class="feature-card fade-up"><div class="feature-icon">👤</div><h3>Human-in-the-Loop</h3><p>Bounded autonomy — submits PRs and reviews, never deploys directly to production.</p></div>
+<div class="feature-card fade-up"><div class="feature-icon">📊</div><h3>Mission History</h3><p>Every action logged in MongoDB — diffs, logs, AI reasoning, PR links, success or failure.</p></div>
+</div>
+</section>
+
+<!-- TECH STACK -->
+<section id="tech" class="container tech-section">
+<div class="fade-up"><p class="section-label">Built With</p><h2 class="section-title">Tech Stack</h2><p class="section-sub" style="margin-left:auto;margin-right:auto">Modern tooling for maximum reliability and developer experience.</p></div>
+<div class="tech-grid" id="techGrid">
+<span class="tech-badge">⚛️ React 18</span><span class="tech-badge">⚡ Vite</span><span class="tech-badge">🟢 Node.js</span>
+<span class="tech-badge">🚂 Express</span><span class="tech-badge">🍃 MongoDB</span><span class="tech-badge">🔌 Socket.io</span>
+<span class="tech-badge">🐳 Docker</span><span class="tech-badge">🐙 Octokit</span><span class="tech-badge">🧠 LangGraph</span>
+<span class="tech-badge">✨ Gemini 1.5 Pro</span><span class="tech-badge">🤖 GPT-4o</span><span class="tech-badge">🎨 Tailwind CSS</span>
+</div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+<div class="container fade-up">
+<h2>Ready to <span style="color:var(--green)">self-heal</span> your CI/CD?</h2>
+<p>Deploy Ghostwriter in minutes. Open source, zero vendor lock-in, infinitely extensible.</p>
+<button class="btn-primary" onclick="window.open('https://github.com/md-bilal-d/ghostwriter-agent','_blank')">View on GitHub →</button>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer"><div class="container">Built with 🤖 by <a href="https://github.com/md-bilal-d" target="_blank">md-bilal-d</a> · Following <strong>AgenticCI Framework</strong> principles · MIT License</div></footer>
+
+<script src="ghostwriter-agent.js"></script>
+</body>
+</html>
